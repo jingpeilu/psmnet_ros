@@ -29,11 +29,14 @@ If have different camera parameters, change this line to your calibration file.
 camera_file = "./camera_calibration.yaml"
 ```
 Subscriber topics:
-"/stereo/slave/left/image"  Image(1920,1080)
-"/stereo/slave/right/image" Image(1920,1080)
-"/stereo/viewer/left/image" Image(1920,1080)
-
+```
+image_sub_left = Subscriber("/stereo/slave/left/image", Image)  #(1920,1080)
+image_sub_right = Subscriber("/stereo/slave/right/image", Image)  #(1920,1080)
+image_sub_mask = Subscriber("/stereo/viewer/left/image", Image) #(1920,1080)
+```
 Publisher topics:
-"camera/depth_image"  Image(640,480)
-"camera/color_image"  Image(640,480)
+```
+depth_pub = rospy.Publisher("camera/depth_image",Image,queue_size=10) #(640,480)
+image_pub = rospy.Publisher("camera/color_image",Image,queue_size=10) #(640,480)
+```
 
