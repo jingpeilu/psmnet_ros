@@ -4,14 +4,14 @@ Stereo reconstruction using PSMNet (SuPer Deep implementation)
 ## Usage
 
 ### Dependencies
-Recommend set up the enviornment using Anaconda ("enviornment.yml" provides an example enviornment).
+Recommend set up the environment using Anaconda ("environment.yml" provides an example enviornment).
 
 - Python2.7
 - PyTorch(0.4.0+)
 - torchvision 0.2.0 
 - rospkg 1.1.10
 
-Install rospkg in conda enviornment:
+Install rospkg in conda environment:
 ```
 $ conda install setuptools
 $ pip install -U rosdep rosinstall_generator wstool rosinstall six vcstools
@@ -40,3 +40,7 @@ depth_pub = rospy.Publisher("camera/depth_image",Image,queue_size=10) #(640,480)
 image_pub = rospy.Publisher("camera/color_image",Image,queue_size=10) #(640,480)
 ```
 
+If has libcv_bridge.so error, specify the LD_LIBRARY_PATH to your anaconda environment:
+```
+export LD_LIBRARY_PATH=/home/$USER/anaconda3/envs/py27/lib:/opt/ros/melodic/lib
+```
