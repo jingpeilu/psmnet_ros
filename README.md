@@ -12,10 +12,11 @@ Recommend set up the enviornment using Anaconda.
 - rospkg 1.1.10
 
 Install rospkg in canda enviornment:
-'''
+```
 $ conda install setuptools
 $ pip install -U rosdep rosinstall_generator wstool rosinstall six vcstools
-'''
+```
+
 
 Check "enviornment.yml" for example environment file.
 
