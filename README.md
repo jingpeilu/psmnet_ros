@@ -1,5 +1,5 @@
 # psmnet_ros
-Stereo reconstruction using PSMNet (SuPer Deep implementation)
+Stereo reconstruction using PSMNet (SuPer Deep implementation, https://arxiv.org/abs/2003.03472)
 
 ## Usage
 
