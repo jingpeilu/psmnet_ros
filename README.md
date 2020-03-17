@@ -24,7 +24,7 @@ python PSMNet_ros.py
 ```
 
 ## Notes
-If have different camera parameters, change this line on config file.
+If have different camera calibration file, change this line on config file.
 ```
 camera_file: ./camera_calibration.yaml
 ```
