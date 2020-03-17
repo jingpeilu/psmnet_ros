@@ -23,21 +23,21 @@ To run the file:
 python PSMNet_ros.py
 ```
 
-### Notes
+### Config file
 If have different camera parameters, change this line to your calibration file.
 ```
-camera_file = "./camera_calibration.yaml"
+camera_file: ./camera_calibration.yaml
 ```
 Subscriber topics:
 ```
-image_sub_left = Subscriber("/stereo/slave/left/image", Image)  #(1920,1080)
-image_sub_right = Subscriber("/stereo/slave/right/image", Image)  #(1920,1080)
-image_sub_mask = Subscriber("/stereo/viewer/left/image", Image) #(1920,1080)
+left_image_sub: /stereo/slave/left/image #(1920,1080)
+right_image_sub: /stereo/slave/right/image #(1920,1080)
+mask_image_sub: /stereo/viewer/left/image #(1920,1080)
 ```
 Publisher topics:
 ```
-depth_pub = rospy.Publisher("camera/depth_image",Image,queue_size=10) #(640,480)
-image_pub = rospy.Publisher("camera/color_image",Image,queue_size=10) #(640,480)
+depth_publisher: camera/depth_image #(640,480)
+color_publisher: camera/color_image #(640,480)
 ```
 
 If has libcv_bridge.so error, specify the LD_LIBRARY_PATH to your anaconda environment:
