@@ -1,0 +1,19 @@
+# file setting
+camera_file: ./camera_calibration.yaml
+weights: pretrained_model_KITTI2015.tar
+
+# publisher
+depth_publisher: camera/depth_image
+color_publisher: camera/color_image
+
+# subscriber
+left_image_sub: /stereo/slave/left/image
+right_image_sub: /stereo/slave/right/image
+mask_image_sub: /stereo/viewer/left/image
+
+# parameters for applying mask
+mask_offset: 100
+dilation_size: 9
+
+# parameters for depth map
+depth_thresh: 0

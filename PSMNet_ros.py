@@ -24,10 +24,16 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from message_filters import ApproximateTimeSynchronizer, Subscriber
+import yaml
+
+
+with open("config.yaml", 'r') as ymlfile:
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
 
 rospy.init_node('psmnet')
 bridge = CvBridge()
-camera_file = "./camera_calibration.yaml"
+camera_file = cfg["camera_file"]
 
 ############### read camera matrix ################
 fs = cv2.FileStorage(camera_file, cv2.FILE_STORAGE_READ)
@@ -84,9 +90,9 @@ def apply_mask(disp,image_mask):
     img_mask = img_mask[:,:,2]
     img_mask[img_mask<254] = 0
     img_mask[img_mask>=254] = 1
-    kernel = np.ones((9,9), np.uint8) 
+    kernel = np.ones((cfg["dilation_size"],cfg["dilation_size"]), np.uint8) 
     img_mask = cv2.erode(img_mask, kernel, iterations=1) 
-    offset = 100
+    offset = cfg["mask_offset"]
     img_mask = img_mask[:,offset:offset+640]
     return disp * img_mask
     
@@ -105,7 +111,7 @@ model.cuda()
 
 
 print('load PSMNet')
-state_dict = torch.load("pretrained_model_KITTI2015.tar")
+state_dict = torch.load(cfg["weights"])
 model.load_state_dict(state_dict['state_dict'])
 
 print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
@@ -161,8 +167,8 @@ def cal_disp(imgL_o,imgR_o):
     return img
 
 #publisher
-depth_pub = rospy.Publisher("camera/depth_image",Image,queue_size=10)
-image_pub = rospy.Publisher("camera/color_image",Image,queue_size=10)
+depth_pub = rospy.Publisher(cfg["depth_publisher"],Image,queue_size=10)
+image_pub = rospy.Publisher(cfg["color_publisher"],Image,queue_size=10)
 
 
 def gotimage(image_l, image_r, image_m):
@@ -188,9 +194,9 @@ def gotimage(image_l, image_r, image_m):
 
     # apply mask
     depth = apply_mask(depth,image_mask)
-    depth[0:150,:] = 0
+    depth[0:150,:] = 0  # flitering
     depth = depth.astype('uint16')
-    #depth[depth<600] = 0
+    depth[depth < cfg['depth_thresh']] = 0
     #depth[depth<716] = 0
     print('publishing depth map: ' + str(l_stamp))
     try:
@@ -200,9 +206,9 @@ def gotimage(image_l, image_r, image_m):
         print(e)
     #time.sleep(0.5)
 
-image_sub_left = Subscriber("/stereo/slave/left/image", Image)
-image_sub_right = Subscriber("/stereo/slave/right/image", Image)
-image_sub_mask = Subscriber("/stereo/viewer/left/image", Image)
+image_sub_left = Subscriber(cfg["left_image_sub"], Image)
+image_sub_right = Subscriber(cfg["right_image_sub"], Image)
+image_sub_mask = Subscriber(cfg["mask_image_sub"], Image)
 
 ats = ApproximateTimeSynchronizer([image_sub_left, image_sub_right, image_sub_mask], queue_size=100, slop=0.5)
 ats.registerCallback(gotimage)
