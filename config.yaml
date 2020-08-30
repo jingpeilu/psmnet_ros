@@ -15,5 +15,19 @@ mask_image_sub: /stereo/viewer/left/image
 mask_offset: 100
 dilation_size: 9
 
-# parameters for depth map
-depth_thresh: 0
+# original image size
+input_img_width: 1920
+input_img_height: 1080
+
+# scale the input image after receiving
+scaleing_factor: 2
+
+# output depth map size
+output_img_width: 640
+output_img_height: 480
+
+# depth scaling for fusion
+depth_scaling : 10
+
+# sleep time between each msg
+sleep_time: 0.0

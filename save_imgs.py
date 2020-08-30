@@ -26,7 +26,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 import yaml
 
-############### read config file ##################
+
 with open("config.yaml", 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
@@ -34,16 +34,17 @@ with open("config.yaml", 'r') as ymlfile:
 rospy.init_node('psmnet')
 bridge = CvBridge()
 camera_file = cfg["camera_file"]
+frame_num = 0
 
 ############### read camera matrix ################
 fs = cv2.FileStorage(camera_file, cv2.FILE_STORAGE_READ)
 fn = fs.getNode("K1")
 mtx1 = fn.mat()
-mtx1 = mtx1/cfg["scaleing_factor"]
+mtx1 = mtx1/2
 mtx1[2,2] = 1
 fn = fs.getNode("K2")
 mtx2 = fn.mat()
-mtx2 = mtx2/cfg["scaleing_factor"]
+mtx2 = mtx2/2
 mtx2[2,2] = 1
 fn = fs.getNode("D1")
 dist1 = fn.mat()
@@ -54,39 +55,38 @@ R = fn.mat()
 fn = fs.getNode("T")
 T = fn.mat()
 
-BINIMG_W = cfg["output_img_width"]
-BINIMG_H = cfg["output_img_height"]
+BINIMG_W = 640
+BINIMG_H = 480
 
 R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
     mtx1, dist1,
     mtx2, dist2,
-    (cfg["input_img_width"]/cfg["scaleing_factor"], cfg["input_img_height"]/cfg["scaleing_factor"]),
+    (960, 540),
     R,
     T,
     flags=cv2.CALIB_ZERO_DISPARITY,
     alpha=0,
     newImageSize=(BINIMG_W, BINIMG_H)
 )
-
-map11,map12 = cv2.initUndistortRectifyMap(mtx1,dist1,R1,P1,(BINIMG_W, BINIMG_H),cv2.CV_16SC2)
-map21,map22 = cv2.initUndistortRectifyMap(mtx2,dist2,R2,P2,(BINIMG_W, BINIMG_H),cv2.CV_16SC2)
-
-
 def rectify_undistort(img1,img2):
-    '''
-    rectify and undistort the stereo image pairs
-    '''
-
+    R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+        mtx1, dist1,
+        mtx2, dist2,
+        (960, 540),
+        R,
+        T,
+        flags=cv2.CALIB_ZERO_DISPARITY,
+        alpha=0,
+        newImageSize=(BINIMG_W, BINIMG_H)
+    )
+    map11,map12 = cv2.initUndistortRectifyMap(mtx1,dist1,R1,P1,(BINIMG_W, BINIMG_H),cv2.CV_16SC2)
+    map21,map22 = cv2.initUndistortRectifyMap(mtx2,dist2,R2,P2,(BINIMG_W, BINIMG_H),cv2.CV_16SC2)
     img1r = cv2.remap(img1, map11, map12, cv2.INTER_LINEAR)
     img2r = cv2.remap(img2, map21, map22, cv2.INTER_LINEAR)
     return img1r,img2r
 
 
 def apply_mask(disp,image_mask):
-    '''
-    applying tool mask
-    parameters are tuned to work on super dataset
-    '''
     img_mask = cv2.resize(image_mask, (854,480), interpolation = cv2.INTER_AREA)
     img_mask = img_mask[:,:,2]
     img_mask[img_mask<254] = 0
@@ -98,7 +98,7 @@ def apply_mask(disp,image_mask):
     return disp * img_mask
     
     
-################### set up PSMNet ######################
+################### load PSMNet ######################
 
 torch.manual_seed(6)
 torch.cuda.manual_seed(6)
@@ -167,15 +167,14 @@ def cal_disp(imgL_o,imgR_o):
         
     return img
 
-##################  main ros loop  #####################################
-
 #publisher
 depth_pub = rospy.Publisher(cfg["depth_publisher"],Image,queue_size=10)
 image_pub = rospy.Publisher(cfg["color_publisher"],Image,queue_size=10)
 
 
 def gotimage(image_l, image_r, image_m):
-
+    global frame_num
+    #bridge = CvBridge()
     l_stamp = image_l.header.stamp
     print('receiving images: ' + str(l_stamp))
     try:
@@ -185,39 +184,24 @@ def gotimage(image_l, image_r, image_m):
     except CvBridgeError as e:
         print(e)
     #assert image_left.header.stamp == image_right.header.stamp
-    img_l = cv2.resize(image_left,(cfg["input_img_width"]/cfg["scaleing_factor"], cfg["input_img_height"]/cfg["scaleing_factor"]), interpolation = cv2.INTER_AREA)
-    img_r = cv2.resize(image_right, (cfg["input_img_width"]/cfg["scaleing_factor"], cfg["input_img_height"]/cfg["scaleing_factor"]), interpolation = cv2.INTER_AREA)
+    img_l = cv2.resize(image_left, (960,540), interpolation = cv2.INTER_AREA)
+    img_r = cv2.resize(image_right, (960,540), interpolation = cv2.INTER_AREA)
     img_l,img_r = rectify_undistort(img_l,img_r)
-    disp = cal_disp(img_l,img_r)
-
-    # convert to depth map
-    pcl = cv2.reprojectImageTo3D(disp,Q)
-    depth = pcl[:,:,2]
-    # scale the depth for fusion
-    depth = depth*cfg["depth_scaling"]
-
-    # apply mask
-    depth = apply_mask(depth,image_mask)
-    depth = depth.astype('uint16')
-    
-    # filter for depth image to make fusion smoother, tuned for super dataset
-    #depth[0:150,:] = 0 
-    #depth[depth<716] = 0
+    skimage.io.imsave('/home/jingpei/Desktop/super_exp/000{:03d}-left.png'.format(frame_num),img_l)
+    skimage.io.imsave('/home/jingpei/Desktop/super_exp/000{:03d}-right.png'.format(frame_num),img_r)
+    img_mask = cv2.resize(image_mask, (854,480), interpolation = cv2.INTER_AREA)
+    img_mask = img_mask[:,:,2]
+    img_mask[img_mask<254] = 0
+    img_mask[img_mask>=254] = 1
+    kernel = np.ones((cfg["dilation_size"],cfg["dilation_size"]), np.uint8) 
+    img_mask = cv2.erode(img_mask, kernel, iterations=1) 
+    offset = cfg["mask_offset"]
+    img_mask = img_mask[:,offset:offset+640]
+    skimage.io.imsave('/home/jingpei/Desktop/super_exp/000{:03d}-mask.png'.format(frame_num),img_mask)
+    frame_num += 1
 
 
-    print('publishing depth map: ' + str(l_stamp))
-    try:
-        rgb_msg = bridge.cv2_to_imgmsg(img_l,encoding='rgb8')
-        rgb_msg.header.stamp = l_stamp
-        image_pub.publish(rgb_msg)
-        depth_msg = bridge.cv2_to_imgmsg(depth,encoding='mono16')
-        depth_msg.header.stamp = l_stamp
-        depth_pub.publish(depth_msg)
 
-    except CvBridgeError as e:
-        print(e)
-
-    time.sleep(cfg["sleep_time"])
 
 image_sub_left = Subscriber(cfg["left_image_sub"], Image)
 image_sub_right = Subscriber(cfg["right_image_sub"], Image)
